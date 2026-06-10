@@ -19,9 +19,16 @@ export class DataManager {
         }
     }
 
+    // Извлечение ID видео из любых ссылок
     extractYouTubeId(url) {
         const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=|shorts\/|live\/))([^"&?\/\s]{11})/);
         return (match && match[1]) ? match[1] : url; 
+    }
+
+    // НОВОЕ: Извлечение ID плейлиста из полной ссылки
+    extractYouTubePlaylistId(url) {
+        const match = url.match(/[?&]list=([^#\&\?]+)/);
+        return (match && match[1]) ? match[1] : url; // Если это не ссылка, а уже чистый ID - вернем как есть
     }
 
     // Резервный метод для Архива, если нет API-ключа или он не работает
@@ -101,7 +108,6 @@ export class DataManager {
                             const chunk = videoIds.slice(i, i + 50).join(',');
                             const vRes = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet&id=${chunk}&key=${apiKey}`);
                             
-                            // Если API ругается (400, 403 и т.д.), пробрасываем ошибку, чтобы сработал catch
                             if (!vRes.ok) throw new Error(`API вернул статус ${vRes.status}`);
                             
                             const vData = await vRes.json();
@@ -121,14 +127,13 @@ export class DataManager {
                                 });
                             }
                         }
-                        apiSuccess = true; // Отмечаем, что API отработал успешно
+                        apiSuccess = true;
                     } catch (apiError) {
                         console.warn("⚠️ [DataManager] Ошибка API, переключаемся на безопасный oEmbed:", apiError.message);
                         apiSuccess = false;
                     }
                 }
 
-                // Если API выключен (стоит заглушка) ИЛИ он упал (apiSuccess = false), используем резервный метод
                 if (!apiSuccess && videoIds.length > 0) {
                     console.log("♻️ [DataManager] Загрузка архива через резервный метод (oEmbed)...");
                     const fetchPromises = videoIds.map(async (id) => {
@@ -144,10 +149,14 @@ export class DataManager {
                 if (!hasValidApiKey) {
                     throw new Error("Чтобы открыть этот раздел, впишите настоящий API-ключ в config.json");
                 }
-                if (!this.config.youtube_playlists) {
-                    throw new Error("Не настроен ID плейлиста в config.json");
+                if (!this.config.youtube_playlists || this.config.youtube_playlists.length === 0) {
+                    throw new Error("Не настроен плейлист в config.json");
                 }
-                const playlistId = this.config.youtube_playlists[0];
+                
+                // ИСПРАВЛЕНИЕ: Теперь система автоматически вырежет ID из полной ссылки
+                const rawPlaylistInput = this.config.youtube_playlists[0];
+                const playlistId = this.extractYouTubePlaylistId(rawPlaylistInput);
+                
                 const url = `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=50&playlistId=${playlistId}&key=${apiKey}`;
                 
                 const apiRes = await fetch(url);

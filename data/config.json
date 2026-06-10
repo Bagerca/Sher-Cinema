@@ -1,7 +1,6 @@
 {
-    "youtube_api_key": "ВАШ_GOOGLE_API_KEY",
-    "youtube_playlists": [
-        "PLQQ_k5h3XzYxM69XU2W2Y4QyG3T_V3b", 
-        "ПРИМЕР_ID_ДРУГОГО_ПЛЕЙЛИСТА"
+    "youtube_api_key": "AIzaSyA40Djb98-01PTmwVuNNNs9BR_MReaJ2Kw",
+    "youtube_playlists": [ 
+        "https://youtube.com/playlist?list=PLRp0gf9ki7cpraDPw3wM1h2cZiNDrnyOJ&si=rpYf4DPuViKIHTU-"
     ]
 }
