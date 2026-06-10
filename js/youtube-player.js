@@ -19,14 +19,13 @@ export class YouTubePlayerController {
     }
 
     init() {
-        // ИСПРАВЛЕНИЕ: Жестко формируем правильный origin для GitHub Pages
-        const currentOrigin = window.location.protocol + '//' + window.location.hostname;
+        // Используем встроенный и самый надежный метод браузера для получения origin
+        const currentOrigin = window.location.origin;
 
         this.player = new YT.Player('yt-player', {
             height: '100%', 
             width: '100%',
             playerVars: {
-                // ВАЖНО: На боевых серверах автоплей работает стабильнее, если передавать origin
                 'autoplay': 1, 
                 'controls': 0, 
                 'disablekb': 1,
@@ -36,10 +35,11 @@ export class YouTubePlayerController {
                 'modestbranding': 1, 
                 'origin': currentOrigin,
                 'enablejsapi': 1,
-                'playsinline': 1 // Помогает автоплею на мобильных устройствах
+                'playsinline': 1 
             },
             events: {
                 'onReady': () => {
+                    console.log('▶️ [Player] Экземпляр плеера создан');
                     this.isReady = true;
                     document.getElementById('player-loader').style.display = 'none';
                     EventBus.emit('PLAYER_READY');
@@ -52,7 +52,6 @@ export class YouTubePlayerController {
                 'onStateChange': (event) => this.onStateChange(event),
                 'onError': (event) => {
                     console.error("⚠️ [Player] Ошибка YouTube плеера, код:", event.data);
-                    // Если видео заблокировано владельцем (код 150) или удалено (код 100), пропускаем его
                     if (event.data === 150 || event.data === 101 || event.data === 100) {
                         EventBus.emit('CMD_NEXT');
                     }
@@ -118,7 +117,6 @@ export class YouTubePlayerController {
         if (state === YT.PlayerState.PLAYING || state === YT.PlayerState.BUFFERING) {
             this.player.pauseVideo();
         } else {
-            // Если браузер заблокировал старт, эта кнопка принудительно запустит его
             this.player.playVideo();
         }
     }
@@ -151,7 +149,6 @@ export class YouTubePlayerController {
     }
 
     onStateChange(event) {
-        // YT.PlayerState.UNSTARTED = -1
         if (event.data === YT.PlayerState.ENDED) {
             EventBus.emit('PLAYER_STATE_CHANGED', false);
             EventBus.emit('CMD_NEXT');
