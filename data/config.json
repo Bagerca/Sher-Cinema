@@ -1,6 +1,13 @@
 {
     "youtube_api_key": "AIzaSyA40Djb98-01PTmwVuNNNs9BR_MReaJ2Kw",
-    "youtube_playlists": [ 
-        "https://youtube.com/playlist?list=PLRp0gf9ki7cpraDPw3wM1h2cZiNDrnyOJ&si=rpYf4DPuViKIHTU-"
+    "playlists": [
+        {
+            "name": "ГЛАВНЫЙ МИКС",
+            "url": "https://youtube.com/playlist?list=PLRp0gf9ki7cpraDPw3wM1h2cZiNDrnyOJ"
+        },
+        {
+            "name": "The Amazing Digital Circus",
+            "url": "https://youtube.com/playlist?list=PLHovnlOusNLgvAbnxluXCVB3KLj8e4QB-&si=iABabnQDhxZv7AcA"
+        }
     ]
 }

@@ -7,16 +7,20 @@ export class YouTubePlayerController {
         this.isReady = false;
         this.currentVideoId = null;
         this.timeTracker = null;
-        this.currentQuality = 'auto';
-        this.userRequestedQuality = null;
+        this.ccEnabled = false;
+        this.nativeControls = false; // Флаг: включен ли родной интерфейс YouTube
 
         EventBus.on('CMD_PLAY_PAUSE', () => this.togglePlay());
         EventBus.on('PLAY_VIDEO', (videoId) => this.loadVideo(videoId));
         EventBus.on('CMD_SEEK', (percent) => this.seekToPercent(percent));
-        EventBus.on('CMD_SEEK_RELATIVE', (seconds) => this.seekRelative(seconds)); // НОВОЕ: Относительная перемотка
+        EventBus.on('CMD_SEEK_RELATIVE', (seconds) => this.seekRelative(seconds));
         EventBus.on('CMD_VOLUME', (vol) => this.setVolume(vol));
         EventBus.on('CMD_MUTE_TOGGLE', () => this.toggleMute());
-        EventBus.on('CMD_CHANGE_QUALITY', (qual) => this.forceQuality(qual));
+        EventBus.on('CMD_SPEED', (rate) => this.setSpeed(rate));
+        EventBus.on('CMD_TOGGLE_CC', () => this.toggleCC());
+        
+        // НОВОЕ: Команда на пересборку плеера
+        EventBus.on('CMD_REBUILD_PLAYER', (showNative) => this.rebuildPlayer(showNative));
     }
 
     init() {
@@ -26,8 +30,9 @@ export class YouTubePlayerController {
             height: '100%', 
             width: '100%',
             playerVars: {
-                'autoplay': 1, 
-                'controls': 0, 
+                'autoplay': 0, 
+                // Если включен System Override, показываем родные контролы
+                'controls': this.nativeControls ? 1 : 0, 
                 'disablekb': 1,
                 'fs': 0, 
                 'rel': 0, 
@@ -35,11 +40,11 @@ export class YouTubePlayerController {
                 'modestbranding': 1, 
                 'origin': currentOrigin,
                 'enablejsapi': 1,
-                'playsinline': 1 
+                'playsinline': 1,
+                'hl': 'ru' 
             },
             events: {
                 'onReady': () => {
-                    console.log('▶️ [Player] Экземпляр плеера создан');
                     this.isReady = true;
                     document.getElementById('player-loader').style.display = 'none';
                     EventBus.emit('PLAYER_READY');
@@ -51,64 +56,82 @@ export class YouTubePlayerController {
                 },
                 'onStateChange': (event) => this.onStateChange(event),
                 'onError': (event) => {
-                    console.error("⚠️ [Player] Ошибка YouTube плеера, код:", event.data);
                     if (event.data === 150 || event.data === 101 || event.data === 100) {
                         EventBus.emit('CMD_NEXT');
                     }
                 },
                 'onPlaybackQualityChange': (event) => {
-                    if (!this.userRequestedQuality) {
-                        EventBus.emit('QUALITY_CHANGED', event.data);
-                    }
+                    EventBus.emit('QUALITY_CHANGED', event.data);
                 }
+            }
+        });
+    }
+
+    // НОВОЕ: Пересборка плеера на лету
+    rebuildPlayer(showNative) {
+        if (!this.player || !this.currentVideoId) return;
+        
+        const loader = document.getElementById('player-loader');
+        loader.innerHTML = '<i class="fas fa-tools fa-spin"></i> ПЕРЕСБОРКА СИСТЕМЫ...';
+        loader.style.display = 'flex';
+        loader.style.background = 'rgba(0,0,0,0.8)';
+
+        const currentTime = this.player.getCurrentTime();
+        const currentVideo = this.currentVideoId;
+        const wasPlaying = this.player.getPlayerState() === YT.PlayerState.PLAYING;
+        const currentVol = this.player.getVolume();
+
+        // Убиваем старый плеер
+        this.player.destroy();
+        this.isReady = false;
+        this.nativeControls = showNative;
+
+        // Создаем новый
+        const currentOrigin = window.location.origin;
+        this.player = new YT.Player('yt-player', {
+            height: '100%', width: '100%',
+            playerVars: {
+                'autoplay': wasPlaying ? 1 : 0, 
+                'controls': this.nativeControls ? 1 : 0, 
+                'disablekb': 1, 'fs': 0, 'rel': 0, 'iv_load_policy': 3,
+                'modestbranding': 1, 'origin': currentOrigin, 'enablejsapi': 1, 'playsinline': 1, 'hl': 'ru'
+            },
+            events: {
+                'onReady': () => {
+                    this.isReady = true;
+                    loader.style.display = 'none';
+                    this.player.setVolume(currentVol);
+                    
+                    if (wasPlaying) {
+                        this.player.loadVideoById({ videoId: currentVideo, startSeconds: currentTime });
+                    } else {
+                        this.player.cueVideoById({ videoId: currentVideo, startSeconds: currentTime });
+                    }
+                    this.startTimeTracker();
+                },
+                'onStateChange': (event) => this.onStateChange(event)
             }
         });
     }
 
     loadVideo(videoId) {
         this.currentVideoId = videoId;
-        this.userRequestedQuality = null;
         if (this.isReady) {
-            this.player.loadVideoById({ videoId: videoId });
+            this.player.cueVideoById({ videoId: videoId });
             EventBus.emit('QUALITY_CHANGED', 'auto');
         }
     }
 
-    showReloadGlitch() {
-        const loader = document.getElementById('player-loader');
-        if(loader) {
-            loader.innerHTML = '<i class="fas fa-sync fa-spin"></i> СИНХРОНИЗАЦИЯ ПОТОКА...';
-            loader.style.display = 'flex';
-            loader.style.background = 'rgba(0,0,0,0.8)';
-            setTimeout(() => { loader.style.display = 'none'; }, 800);
-        }
-    }
-
-    forceQuality(qualityCode) {
-        this.currentQuality = qualityCode;
-        this.userRequestedQuality = qualityCode;
-        if (!this.isReady || !this.currentVideoId) return;
-
-        this.showReloadGlitch();
-        
-        const currentTime = this.player.getCurrentTime();
-        
-        if (qualityCode === 'auto') {
-            this.player.loadVideoById({
-                videoId: this.currentVideoId,
-                startSeconds: currentTime
-            });
-            this.userRequestedQuality = null;
-        } else {
-            this.player.loadVideoById({
-                videoId: this.currentVideoId,
-                startSeconds: currentTime,
-                suggestedQuality: qualityCode
-            });
-        }
-        
-        console.log(`🎥 [Player] Запрос качества: ${qualityCode}`);
-        EventBus.emit('QUALITY_CHANGED', qualityCode);
+    fadeInVolume() {
+        const targetVol = parseInt(localStorage.getItem('sher_volume')) || 100;
+        this.player.setVolume(0);
+        let currentFade = 0;
+        const step = targetVol / 10; 
+        const fadeInt = setInterval(() => {
+            currentFade += step;
+            if (currentFade >= targetVol) { currentFade = targetVol; clearInterval(fadeInt); }
+            this.player.setVolume(currentFade);
+        }, 50); 
     }
 
     togglePlay() {
@@ -117,6 +140,7 @@ export class YouTubePlayerController {
         if (state === YT.PlayerState.PLAYING || state === YT.PlayerState.BUFFERING) {
             this.player.pauseVideo();
         } else {
+            this.fadeInVolume();
             this.player.playVideo();
         }
     }
@@ -127,11 +151,9 @@ export class YouTubePlayerController {
         if (duration > 0) {
             const targetTime = duration * percent;
             this.player.seekTo(targetTime, true);
-            EventBus.emit('TIME_UPDATE', { current: targetTime, total: duration });
         }
     }
 
-    // НОВОЕ: Метод для перемотки на точное количество секунд
     seekRelative(seconds) {
         if (!this.isReady || !this.currentVideoId) return;
         const current = this.player.getCurrentTime();
@@ -141,7 +163,6 @@ export class YouTubePlayerController {
             if (targetTime < 0) targetTime = 0;
             if (targetTime > duration) targetTime = duration;
             this.player.seekTo(targetTime, true);
-            EventBus.emit('TIME_UPDATE', { current: targetTime, total: duration });
         }
     }
 
@@ -162,28 +183,34 @@ export class YouTubePlayerController {
         }
     }
 
+    setSpeed(rate) {
+        if (!this.isReady) return;
+        this.player.setPlaybackRate(parseFloat(rate));
+    }
+
+    toggleCC() {
+        if (!this.isReady) return;
+        this.ccEnabled = !this.ccEnabled;
+        if (this.ccEnabled) {
+            this.player.loadModule('captions');
+            this.player.setOption('captions', 'track', {'languageCode': 'ru'});
+        } else {
+            this.player.unloadModule('captions');
+        }
+        EventBus.emit('CC_STATE_CHANGED', this.ccEnabled);
+    }
+
     onStateChange(event) {
         if (event.data === YT.PlayerState.ENDED) {
             EventBus.emit('PLAYER_STATE_CHANGED', false);
             EventBus.emit('CMD_NEXT');
             return;
         }
-        
         const isPlaying = event.data === YT.PlayerState.PLAYING;
         EventBus.emit('PLAYER_STATE_CHANGED', isPlaying);
-
         if (isPlaying) {
-            try {
-                const qualities = this.player.getAvailableQualityLevels();
-                EventBus.emit('AVAILABLE_QUALITIES_UPDATE', qualities);
-                
-                if (!this.userRequestedQuality) {
-                    const currentQual = this.player.getPlaybackQuality();
-                    EventBus.emit('QUALITY_CHANGED', currentQual);
-                }
-            } catch (e) {
-                console.error('Ошибка получения качеств', e);
-            }
+            const currentQual = this.player.getPlaybackQuality();
+            EventBus.emit('QUALITY_CHANGED', currentQual);
         }
     }
 

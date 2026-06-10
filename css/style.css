@@ -5,3 +5,4 @@
 @import "player.css";
 @import "controls.css";
 @import "playlist.css";
+@import "debug.css"; /* НОВОЕ: Подключение стилей дебаггера */

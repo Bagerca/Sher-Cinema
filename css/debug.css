@@ -1,0 +1,69 @@
+/* css/debug.css */
+
+.debug-layout {
+    display: flex; flex-grow: 1; padding: 25px 40px 40px 40px; gap: 30px; overflow: hidden; height: calc(100vh - 80px);
+}
+
+.debug-sidebar {
+    width: 350px; display: flex; flex-direction: column; gap: 20px; flex-shrink: 0; overflow-y: auto;
+}
+
+.debug-panel {
+    background: var(--panel-bg); border: 1px solid var(--border-color); border-radius: 12px;
+    padding: 20px; backdrop-filter: blur(10px); box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+}
+
+.panel-header {
+    font-family: 'Orbitron', sans-serif; font-size: 0.9rem; color: #ffaa00;
+    border-bottom: 1px dashed rgba(255,255,255,0.1); padding-bottom: 10px; margin-bottom: 15px;
+    letter-spacing: 1px; display: flex; align-items: center; gap: 10px;
+}
+
+.input-group { margin-bottom: 15px; display: flex; flex-direction: column; gap: 5px; }
+.input-group label { font-family: 'Rajdhani', sans-serif; font-size: 0.8rem; color: #888; font-weight: 700; text-transform: uppercase; }
+
+.cyber-input {
+    background: rgba(0,0,0,0.6); border: 1px solid var(--border-color); border-radius: 6px;
+    color: #fff; font-family: 'monospace'; font-size: 0.9rem; padding: 10px; outline: none;
+    transition: 0.3s; width: 100%; box-shadow: inset 0 0 10px rgba(0,0,0,0.8);
+}
+.cyber-input:focus { border-color: #ffaa00; box-shadow: inset 0 0 15px rgba(255, 170, 0, 0.15); }
+.cyber-input[readonly] { color: #888; cursor: not-allowed; }
+
+.action-buttons { display: flex; flex-direction: column; gap: 10px; margin-top: 20px; }
+.action-btn { width: 100%; height: auto; padding: 12px; font-family: 'Orbitron', sans-serif; font-size: 0.8rem; justify-content: flex-start; gap: 10px; color: #ccc; }
+.action-btn:hover { border-color: #ffaa00; color: #fff; box-shadow: 0 0 15px rgba(255, 170, 0, 0.2); }
+
+.debug-log {
+    background: rgba(0,0,0,0.8); border: 1px solid var(--border-color); border-left: 3px solid #ffaa00;
+    border-radius: 8px; padding: 15px; font-family: 'monospace'; font-size: 0.8rem; color: #aaa;
+}
+
+.debug-viewer {
+    flex-grow: 1; background: #0a0a0f; border: 1px solid var(--border-color); border-radius: 12px;
+    display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+}
+
+.viewer-header {
+    background: rgba(255,255,255,0.02); border-bottom: 1px solid var(--border-color);
+    padding: 10px 20px; display: flex; justify-content: space-between; align-items: center;
+    font-family: 'Orbitron', sans-serif; font-size: 0.9rem; color: #ccc;
+}
+
+.json-container {
+    padding: 20px; margin: 0; overflow: auto; flex-grow: 1;
+    font-family: 'Consolas', 'Courier New', monospace; font-size: 0.9rem; line-height: 1.5;
+    background: #0d0d14; color: #e0e0e0; tab-size: 2;
+}
+
+/* JSON Syntax Highlighting */
+.json-key { color: var(--neon-green); font-weight: bold; }
+.json-string { color: var(--neon-pink); }
+.json-number { color: #ffaa00; }
+.json-boolean { color: #00d4ff; font-weight: bold; }
+.json-null { color: #888; font-style: italic; }
+
+@media (max-width: 992px) {
+    .debug-layout { flex-direction: column; overflow-y: auto; height: auto; min-height: 100vh; }
+    .debug-sidebar { width: 100%; }
+}

@@ -4,18 +4,30 @@
     flex-grow: 1; display: flex; flex-direction: column; gap: 20px; min-width: 0;
 }
 
+/* ИСПРАВЛЕНИЕ: Добавлен эффект Ambilight */
 .video-container-wrapper {
-    flex-grow: 1; position: relative; border: 1px solid var(--neon-pink); 
-    border-radius: 12px; box-shadow: 0 0 30px rgba(255, 45, 149, 0.2);
-    background: #000; overflow: hidden;
+    flex-grow: 1; position: relative; border: 1px solid var(--border-color); 
+    border-radius: 12px; background: #000; overflow: hidden;
+    /* Базовое свечение цвета обложки */
+    box-shadow: 0 0 40px var(--ambilight-color, rgba(255, 45, 149, 0.2));
+    transition: box-shadow 1.5s ease-in-out, border-color 1.5s;
+}
+
+/* Дыхание свечения во время воспроизведения */
+.video-container-wrapper.playing {
+    border-color: var(--ambilight-color);
+    animation: ambilight-breathe 4s infinite alternate ease-in-out;
+}
+
+@keyframes ambilight-breathe {
+    0% { box-shadow: 0 0 20px var(--ambilight-color); }
+    100% { box-shadow: 0 0 70px var(--ambilight-color); }
 }
 
 .video-frame { position: absolute; inset: 0; width: 100%; height: 100%; }
 .video-frame iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: none; z-index: 10; }
 
-.video-shield {
-    position: absolute; inset: 0; z-index: 20; cursor: default; background: transparent;
-}
+.video-shield { position: absolute; inset: 0; z-index: 20; cursor: default; background: transparent; }
 
 .player-overlay-loader {
     position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;

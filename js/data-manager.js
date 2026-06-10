@@ -3,186 +3,184 @@ import EventBus from './event-bus.js';
 
 export class DataManager {
     constructor() {
-        this.currentMode = 'archive'; 
         this.videos = [];
         this.config = null;
+        this.playlists = [];
+        this.currentPlaylistIndex = 0;
     }
 
     async init() {
         try {
             const cfgRes = await fetch('./data/config.json');
             this.config = await cfgRes.json();
-            await this.loadSource(this.currentMode);
+            this.playlists = this.config.playlists || [];
+            
+            EventBus.emit('CONFIG_READY', this.playlists);
+
+            if (this.playlists.length > 0) {
+                await this.loadPlaylist(0);
+            } else {
+                throw new Error("В config.json нет ни одного плейлиста");
+            }
         } catch (e) {
-            console.warn("⚠️ [DataManager] config.json не найден или пуст, используем настройки по умолчанию.");
-            await this.loadSource(this.currentMode);
+            console.error("⚠️ [DataManager] Ошибка инициализации:", e);
+            EventBus.emit('SHOW_ERROR', "Не удалось загрузить config.json или плейлисты не настроены.");
         }
     }
 
-    // Извлечение ID видео из любых ссылок
-    extractYouTubeId(url) {
-        const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=|shorts\/|live\/))([^"&?\/\s]{11})/);
+    extractYouTubePlaylistId(url) {
+        if (!url) return null;
+        const match = url.match(/[?&]list=([^#\&\?]+)/);
         return (match && match[1]) ? match[1] : url; 
     }
 
-    // НОВОЕ: Извлечение ID плейлиста из полной ссылки
-    extractYouTubePlaylistId(url) {
-        const match = url.match(/[?&]list=([^#\&\?]+)/);
-        return (match && match[1]) ? match[1] : url; // Если это не ссылка, а уже чистый ID - вернем как есть
-    }
-
-    // Резервный метод для Архива, если нет API-ключа или он не работает
-    async fetchVideoMetadata(videoId) {
-        try {
-            const res = await fetch(`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${videoId}&format=json`);
-            if (!res.ok) return null;
-            const data = await res.json();
-            return {
-                id: videoId,
-                title: data.title,
-                thumb: data.thumbnail_url || `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`,
-                channel: data.author_name,
-                channelAvatar: null // oEmbed не отдает аватары
-            };
-        } catch (e) {
-            return null;
-        }
-    }
-
-    // Пакетная загрузка аватарок
-    async fetchChannelAvatars(channelIds, apiKey) {
-        const uniqueIds = [...new Set(channelIds)].filter(id => id);
-        const avatarsMap = {};
+    // НОВОЕ: Парсинг ISO 8601 длительности (PT25M45S -> 25:45)
+    parseDuration(isoStr) {
+        if (!isoStr) return '';
+        const match = isoStr.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+        if (!match) return '';
+        const h = match[1] ? parseInt(match[1]) : 0;
+        const m = match[2] ? parseInt(match[2]) : 0;
+        const s = match[3] ? parseInt(match[3]) : 0;
         
-        if (uniqueIds.length === 0) return avatarsMap;
+        if (h > 0) return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+        return `${m}:${s.toString().padStart(2, '0')}`;
+    }
+
+    // НОВОЕ: Форматирование чисел (1352931 -> 1.3M)
+    formatNumber(num) {
+        if (!num) return '';
+        const n = parseInt(num);
+        if (n >= 1000000) return (n / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
+        if (n >= 1000) return (n / 1000).toFixed(1).replace(/\.0$/, '') + 'K';
+        return n.toString();
+    }
+
+    // ОБНОВЛЕНО: Загружаем не только аватар, но и хэндл + подписчиков
+    async fetchChannelDetails(channelIds, apiKey) {
+        const uniqueIds = [...new Set(channelIds)].filter(id => id);
+        const map = {};
+        if (uniqueIds.length === 0) return map;
 
         for (let i = 0; i < uniqueIds.length; i += 50) {
             const chunk = uniqueIds.slice(i, i + 50).join(',');
             try {
-                const url = `https://www.googleapis.com/youtube/v3/channels?part=snippet&id=${chunk}&key=${apiKey}`;
+                const url = `https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics&id=${chunk}&key=${apiKey}`;
                 const res = await fetch(url);
-                if (!res.ok) continue; // Игнорируем ошибки при загрузке аватарок
+                if (!res.ok) continue; 
                 const data = await res.json();
                 
                 if (data.items) {
-                    data.items.forEach(channel => {
-                        avatarsMap[channel.id] = channel.snippet.thumbnails.default.url;
+                    data.items.forEach(ch => {
+                        map[ch.id] = {
+                            avatar: ch.snippet.thumbnails.default.url,
+                            handle: ch.snippet.customUrl || null,
+                            subs: this.formatNumber(ch.statistics.subscriberCount)
+                        };
                     });
                 }
             } catch (e) {
-                console.warn("⚠️ [DataManager] Ошибка загрузки аватаров:", e);
+                console.warn("⚠️ [DataManager] Ошибка загрузки каналов:", e);
             }
         }
-        return avatarsMap;
+        return map;
     }
 
-    async loadSource(mode) {
-        this.currentMode = mode;
+    // НОВОЕ: Загрузка статистики видео (один батч-запрос)
+    async fetchVideoStats(videoIds, apiKey) {
+        const uniqueIds = [...new Set(videoIds)].filter(id => id);
+        const map = {};
+        if (uniqueIds.length === 0) return map;
+
+        for (let i = 0; i < uniqueIds.length; i += 50) {
+            const chunk = uniqueIds.slice(i, i + 50).join(',');
+            try {
+                const url = `https://www.googleapis.com/youtube/v3/videos?part=contentDetails,statistics,snippet&id=${chunk}&key=${apiKey}`;
+                const res = await fetch(url);
+                if (!res.ok) continue;
+                const data = await res.json();
+
+                if (data.items) {
+                    data.items.forEach(v => {
+                        map[v.id] = {
+                            durationRaw: v.contentDetails.duration,
+                            duration: this.parseDuration(v.contentDetails.duration),
+                            views: this.formatNumber(v.statistics.viewCount),
+                            likes: this.formatNumber(v.statistics.likeCount),
+                            isLive: v.snippet.liveBroadcastContent === 'live'
+                        };
+                    });
+                }
+            } catch (e) {
+                console.warn("⚠️ [DataManager] Ошибка загрузки статы видео:", e);
+            }
+        }
+        return map;
+    }
+
+    async loadPlaylist(index) {
+        if (index < 0 || index >= this.playlists.length) return;
+        
+        this.currentPlaylistIndex = index;
         this.videos = [];
         EventBus.emit('DATA_LOADING');
 
         const apiKey = this.config?.youtube_api_key;
-        // Проверяем, что ключ вообще есть и это не дефолтная заглушка
-        const hasValidApiKey = apiKey && apiKey !== "ВАШ_GOOGLE_API_KEY" && apiKey.trim() !== "";
+        const playlistData = this.playlists[index];
+        const playlistId = this.extractYouTubePlaylistId(playlistData.url);
+
+        if (!apiKey || apiKey === "ВАШ_GOOGLE_API_KEY" || apiKey.trim() === "") {
+            EventBus.emit('SHOW_ERROR', "Укажите рабочий API-ключ в config.json");
+            return;
+        }
 
         try {
-            if (mode === 'archive') {
-                const res = await fetch('./data/archive.json');
-                const rawData = await res.json();
-                
-                const videoIds = [];
-                const customItems = [];
-                
-                rawData.forEach(item => {
-                    if (typeof item === 'string') videoIds.push(this.extractYouTubeId(item));
-                    else customItems.push(item);
-                });
+            console.log(`📡 [DataManager] Загрузка плейлиста: ${playlistData.name}`);
+            const url = `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=50&playlistId=${playlistId}&key=${apiKey}`;
+            
+            const apiRes = await fetch(url);
+            const data = await apiRes.json();
+            
+            if (data.error) throw new Error(data.error.message || "Ошибка YouTube API");
+            
+            if (data.items) {
+                const channelIds = data.items.map(item => item.snippet.videoOwnerChannelId);
+                const videoIds = data.items.map(item => item.snippet.resourceId.videoId);
 
-                let processedVideos = [];
-                let apiSuccess = false;
+                // ОДНОВРЕМЕННО запрашиваем детали каналов и статистику видео
+                const [channelsMap, videosMap] = await Promise.all([
+                    this.fetchChannelDetails(channelIds, apiKey),
+                    this.fetchVideoStats(videoIds, apiKey)
+                ]);
 
-                // Пытаемся использовать быстрый API метод, если ключ выглядит рабочим
-                if (hasValidApiKey && videoIds.length > 0) {
-                    try {
-                        for (let i = 0; i < videoIds.length; i += 50) {
-                            const chunk = videoIds.slice(i, i + 50).join(',');
-                            const vRes = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet&id=${chunk}&key=${apiKey}`);
-                            
-                            if (!vRes.ok) throw new Error(`API вернул статус ${vRes.status}`);
-                            
-                            const vData = await vRes.json();
-                            
-                            if (vData.items) {
-                                const channelIds = vData.items.map(item => item.snippet.channelId);
-                                const avatarsMap = await this.fetchChannelAvatars(channelIds, apiKey);
+                this.videos = data.items.map(item => {
+                    const cId = item.snippet.videoOwnerChannelId;
+                    const vId = item.snippet.resourceId.videoId;
+                    const cDetails = channelsMap[cId] || {};
+                    const vDetails = videosMap[vId] || {};
 
-                                vData.items.forEach(item => {
-                                    processedVideos.push({
-                                        id: item.id,
-                                        title: item.snippet.title,
-                                        thumb: item.snippet.thumbnails.maxres ? item.snippet.thumbnails.maxres.url : (item.snippet.thumbnails.high?.url || item.snippet.thumbnails.default?.url),
-                                        channel: item.snippet.channelTitle,
-                                        channelAvatar: avatarsMap[item.snippet.channelId] || null
-                                    });
-                                });
-                            }
-                        }
-                        apiSuccess = true;
-                    } catch (apiError) {
-                        console.warn("⚠️ [DataManager] Ошибка API, переключаемся на безопасный oEmbed:", apiError.message);
-                        apiSuccess = false;
-                    }
-                }
-
-                if (!apiSuccess && videoIds.length > 0) {
-                    console.log("♻️ [DataManager] Загрузка архива через резервный метод (oEmbed)...");
-                    const fetchPromises = videoIds.map(async (id) => {
-                        const meta = await this.fetchVideoMetadata(id);
-                        return meta ? meta : { id, title: "Неизвестное видео", thumb: `https://img.youtube.com/vi/${id}/hqdefault.jpg`, channel: "YouTube" };
-                    });
-                    processedVideos = await Promise.all(fetchPromises);
-                }
-                
-                this.videos = [...processedVideos, ...customItems];
-
-            } else if (mode === 'youtube') {
-                if (!hasValidApiKey) {
-                    throw new Error("Чтобы открыть этот раздел, впишите настоящий API-ключ в config.json");
-                }
-                if (!this.config.youtube_playlists || this.config.youtube_playlists.length === 0) {
-                    throw new Error("Не настроен плейлист в config.json");
-                }
-                
-                // ИСПРАВЛЕНИЕ: Теперь система автоматически вырежет ID из полной ссылки
-                const rawPlaylistInput = this.config.youtube_playlists[0];
-                const playlistId = this.extractYouTubePlaylistId(rawPlaylistInput);
-                
-                const url = `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=50&playlistId=${playlistId}&key=${apiKey}`;
-                
-                const apiRes = await fetch(url);
-                const data = await apiRes.json();
-                
-                if (data.error) throw new Error(data.error.message || "Ошибка YouTube API");
-                
-                if (data.items) {
-                    const channelIds = data.items.map(item => item.snippet.videoOwnerChannelId);
-                    const avatarsMap = await this.fetchChannelAvatars(channelIds, apiKey);
-
-                    this.videos = data.items.map(item => ({
-                        id: item.snippet.resourceId.videoId,
+                    return {
+                        id: vId,
                         title: item.snippet.title,
                         thumb: item.snippet.thumbnails.maxres ? item.snippet.thumbnails.maxres.url : item.snippet.thumbnails.high?.url,
                         channel: item.snippet.videoOwnerChannelTitle,
-                        channelAvatar: avatarsMap[item.snippet.videoOwnerChannelId] || null
-                    }));
-                }
+                        channelAvatar: cDetails.avatar || null,
+                        channelHandle: cDetails.handle || null,
+                        channelSubs: cDetails.subs || null,
+                        duration: vDetails.duration || '',
+                        views: vDetails.views || null,
+                        likes: vDetails.likes || null,
+                        isLive: vDetails.isLive || false
+                    };
+                });
             }
             
-            console.log(`📂 [DataManager] Загружено ${this.videos.length} видео. Режим: ${mode}`);
+            console.log(`📂 [DataManager] Загружено ${this.videos.length} видео со статистикой.`);
             EventBus.emit('DATA_READY', this.videos);
+            EventBus.emit('PLAYLIST_CHANGED', index);
             
         } catch (error) {
-            console.error(`❌ [DataManager] Ошибка загрузки базы ${mode}:`, error);
+            console.error(`❌ [DataManager] Ошибка загрузки базы:`, error);
             EventBus.emit('DATA_READY', []);
             EventBus.emit('SHOW_ERROR', error.message);
         }

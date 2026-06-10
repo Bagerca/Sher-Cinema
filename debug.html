@@ -1,0 +1,87 @@
+<!-- debug.html -->
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sher Cinema - API Debugger</title>
+    
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%23050508'/><text x='50' y='70' font-family='sans-serif' font-size='65' font-weight='bold' fill='%2339ff14' text-anchor='middle'>D</text></svg>">
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Exo+2:wght@300;400;600;700&family=Rajdhani:wght@500;700&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+    <div class="cyber-bg"></div>
+
+    <header class="cinema-header">
+        <div class="brand">
+            <h1>API <span>DEBUGGER</span></h1>
+            <div class="status-badge"><span class="pulse-dot" style="background: #ffaa00; box-shadow: 0 0 10px #ffaa00;"></span> РЕЖИМ РАЗРАБОТЧИКА</div>
+        </div>
+        
+        <div class="header-tools">
+            <a href="index.html" class="cyber-btn" style="width: auto; padding: 0 20px; font-family: 'Orbitron', sans-serif; font-size: 0.8rem;">
+                <i class="fas fa-arrow-left"></i> НАЗАД В ПЛЕЕР
+            </a>
+        </div>
+    </header>
+
+    <main class="debug-layout">
+        <aside class="debug-sidebar">
+            <div class="debug-panel">
+                <div class="panel-header"><i class="fas fa-key"></i> КОНФИГУРАЦИЯ</div>
+                <div class="input-group">
+                    <label>API KEY (из config.json)</label>
+                    <input type="text" id="api-key-input" class="cyber-input" placeholder="Загрузка..." readonly>
+                </div>
+            </div>
+
+            <div class="debug-panel">
+                <div class="panel-header"><i class="fas fa-search"></i> ЗАПРОСЫ К API</div>
+                
+                <div class="input-group">
+                    <label>Playlist ID (для тестов)</label>
+                    <div style="display: flex; gap: 10px;">
+                        <select id="playlist-select" class="cyber-input" style="flex-grow: 1;"></select>
+                    </div>
+                </div>
+
+                <div class="input-group">
+                    <label>Video ID</label>
+                    <input type="text" id="video-id-input" class="cyber-input" placeholder="Например: dQw4w9WgXcQ">
+                </div>
+
+                <div class="input-group">
+                    <label>Channel ID</label>
+                    <input type="text" id="channel-id-input" class="cyber-input" placeholder="Например: UC_x5XG1OV2P6uZZ5FSM9Ttw">
+                </div>
+
+                <div class="action-buttons">
+                    <button class="cyber-btn action-btn" data-target="playlistItems"><i class="fas fa-list"></i> PLAYLIST ITEMS (5 шт)</button>
+                    <button class="cyber-btn action-btn" data-target="playlistInfo"><i class="fas fa-info-circle"></i> PLAYLIST INFO</button>
+                    <button class="cyber-btn action-btn" data-target="video"><i class="fas fa-video"></i> VIDEO DETAILS</button>
+                    <button class="cyber-btn action-btn" data-target="channel"><i class="fas fa-user-circle"></i> CHANNEL DETAILS</button>
+                </div>
+            </div>
+            
+            <div class="debug-log" id="status-log">Система готова. Ожидание команд.</div>
+        </aside>
+
+        <section class="debug-viewer">
+            <div class="viewer-header">
+                <span id="endpoint-title">RAW JSON OUTPUT</span>
+                <button class="cyber-btn small-btn" id="btn-copy" title="Копировать JSON"><i class="fas fa-copy"></i></button>
+            </div>
+            <pre id="json-output" class="json-container">Здесь будет выведен сырой ответ от серверов YouTube...</pre>
+        </section>
+    </main>
+
+    <script type="module" src="js/debug.js"></script>
+</body>
+</html>
