@@ -13,13 +13,13 @@ export class YouTubePlayerController {
         EventBus.on('CMD_PLAY_PAUSE', () => this.togglePlay());
         EventBus.on('PLAY_VIDEO', (videoId) => this.loadVideo(videoId));
         EventBus.on('CMD_SEEK', (percent) => this.seekToPercent(percent));
+        EventBus.on('CMD_SEEK_RELATIVE', (seconds) => this.seekRelative(seconds)); // НОВОЕ: Относительная перемотка
         EventBus.on('CMD_VOLUME', (vol) => this.setVolume(vol));
         EventBus.on('CMD_MUTE_TOGGLE', () => this.toggleMute());
         EventBus.on('CMD_CHANGE_QUALITY', (qual) => this.forceQuality(qual));
     }
 
     init() {
-        // Используем встроенный и самый надежный метод браузера для получения origin
         const currentOrigin = window.location.origin;
 
         this.player = new YT.Player('yt-player', {
@@ -126,6 +126,20 @@ export class YouTubePlayerController {
         const duration = this.player.getDuration();
         if (duration > 0) {
             const targetTime = duration * percent;
+            this.player.seekTo(targetTime, true);
+            EventBus.emit('TIME_UPDATE', { current: targetTime, total: duration });
+        }
+    }
+
+    // НОВОЕ: Метод для перемотки на точное количество секунд
+    seekRelative(seconds) {
+        if (!this.isReady || !this.currentVideoId) return;
+        const current = this.player.getCurrentTime();
+        const duration = this.player.getDuration();
+        if (duration > 0) {
+            let targetTime = current + seconds;
+            if (targetTime < 0) targetTime = 0;
+            if (targetTime > duration) targetTime = duration;
             this.player.seekTo(targetTime, true);
             EventBus.emit('TIME_UPDATE', { current: targetTime, total: duration });
         }

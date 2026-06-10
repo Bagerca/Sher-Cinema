@@ -52,26 +52,22 @@ export class UIController {
         };
 
         this.bindEvents();
-        // Пересчет анимации при изменении размера окна
         window.addEventListener('resize', () => this.calculateTitleAnimation());
     }
 
     safeSetStorage(key, val) { try { localStorage.setItem(key, val); } catch (e) {} }
     safeGetStorage(key, defaultVal) { try { return localStorage.getItem(key) ?? defaultVal; } catch (e) { return defaultVal; } }
 
-    // ГЕНЕРАТОР АВАТАРА: Берет первую букву канала и делает неоновый SVG
     generateDynamicAvatar(channelName) {
         const letter = (channelName && channelName.trim().length > 0) ? channelName.trim().charAt(0).toUpperCase() : 'C';
         const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='150' height='150'><rect width='150' height='150' fill='#1a1a2e'/><text x='50%' y='50%' font-family='sans-serif' font-size='65' fill='#39ff14' font-weight='bold' text-anchor='middle' dy='.35em'>${letter}</text></svg>`;
         return "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(svg);
     }
 
-    // РАСЧЕТ УМНОЙ АНИМАЦИИ НАЗВАНИЯ
     calculateTitleAnimation() {
         this.els.titleScroller.classList.remove('is-animating');
         this.els.currentTitle.style.transform = 'none';
         
-        // Даем браузеру долю секунды на отрисовку шрифтов перед замером
         setTimeout(() => {
             const scrollerWidth = this.els.titleScroller.offsetWidth;
             const textWidth = this.els.currentTitle.scrollWidth;
@@ -82,6 +78,23 @@ export class UIController {
                 this.els.titleScroller.classList.add('is-animating');
             }
         }, 50);
+    }
+
+    // НОВОЕ: Вынесли логику громкости в отдельный метод для использования кнопками и мышкой
+    setVolumeUI(val) {
+        this.els.volumeSlider.value = val;
+        this.els.volumeSlider.style.setProperty('--volume-fill', `${val}%`);
+        this.els.btnMute.querySelector('i').className = val == 0 ? 'fas fa-volume-mute' : 'fas fa-volume-up';
+        this.safeSetStorage('sher_volume', val);
+    }
+
+    // НОВОЕ: Вынесли логику фуллскрина
+    toggleFullscreen() {
+        if (!document.fullscreenElement) {
+            this.els.fullscreenWrapper.requestFullscreen().catch(e => console.error(e));
+        } else {
+            document.exitFullscreen();
+        }
     }
 
     bindEvents() {
@@ -113,8 +126,7 @@ export class UIController {
 
         EventBus.on('PLAYER_READY', () => {
             const initVol = parseInt(this.safeGetStorage('sher_volume', 100));
-            this.els.volumeSlider.value = initVol;
-            this.els.volumeSlider.style.setProperty('--volume-fill', `${initVol}%`);
+            this.setVolumeUI(initVol);
             EventBus.emit('CMD_VOLUME', initVol);
         });
 
@@ -136,21 +148,14 @@ export class UIController {
             EventBus.emit('CMD_SEEK', clickX / rect.width);
         });
 
-        const updateVolumeUI = (val) => {
-            this.els.volumeSlider.value = val;
-            this.els.volumeSlider.style.setProperty('--volume-fill', `${val}%`);
-            this.els.btnMute.querySelector('i').className = val == 0 ? 'fas fa-volume-mute' : 'fas fa-volume-up';
-            this.safeSetStorage('sher_volume', val);
-        };
-
         this.els.volumeSlider.addEventListener('input', (e) => {
             const val = e.target.value;
-            updateVolumeUI(val);
+            this.setVolumeUI(val);
             EventBus.emit('CMD_VOLUME', val);
         });
 
         this.els.btnMute.addEventListener('click', () => EventBus.emit('CMD_MUTE_TOGGLE'));
-        EventBus.on('AUDIO_MUTED', (isMuted) => updateVolumeUI(isMuted ? 0 : 100));
+        EventBus.on('AUDIO_MUTED', (isMuted) => this.setVolumeUI(isMuted ? 0 : 100));
 
         this.els.searchInput.addEventListener('input', (e) => {
             const query = e.target.value;
@@ -169,10 +174,7 @@ export class UIController {
         this.els.btnPrev.addEventListener('click', () => this.playPrev());
         EventBus.on('CMD_NEXT', () => this.playNext());
 
-        this.els.btnFullscreen.addEventListener('click', () => {
-            if (!document.fullscreenElement) this.els.fullscreenWrapper.requestFullscreen().catch(e => console.error(e));
-            else document.exitFullscreen();
-        });
+        this.els.btnFullscreen.addEventListener('click', () => this.toggleFullscreen());
 
         this.els.qualityToggleBtn.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -209,6 +211,86 @@ export class UIController {
                 this.dataManager.loadSource(btn.dataset.source);
             });
         });
+
+        // ==========================================
+        // НОВОЕ: Глобальное управление с клавиатуры
+        // ==========================================
+        document.addEventListener('keydown', (e) => {
+            // Если мы печатаем в поиске — игнорируем нажатия
+            if (e.target.tagName.toLowerCase() === 'input' || e.target.tagName.toLowerCase() === 'textarea') {
+                return;
+            }
+
+            const currentVol = parseInt(this.els.volumeSlider.value);
+            // Берем 0.033 сек (примерно 1 кадр при 30fps)
+            const frameStep = 0.033; 
+
+            switch (e.key.toLowerCase()) {
+                case ' ': // Пробел
+                case 'k': // K
+                    e.preventDefault(); // Защита от скролла страницы пробелом
+                    EventBus.emit('CMD_PLAY_PAUSE');
+                    break;
+                
+                case 'arrowright':
+                    e.preventDefault();
+                    EventBus.emit('CMD_SEEK_RELATIVE', 5);
+                    break;
+                
+                case 'arrowleft':
+                    e.preventDefault();
+                    EventBus.emit('CMD_SEEK_RELATIVE', -5);
+                    break;
+
+                case 'l':
+                    EventBus.emit('CMD_SEEK_RELATIVE', 10);
+                    break;
+                
+                case 'j':
+                    EventBus.emit('CMD_SEEK_RELATIVE', -10);
+                    break;
+
+                case '.': // Точка (След. кадр)
+                    EventBus.emit('CMD_SEEK_RELATIVE', frameStep);
+                    break;
+                
+                case ',': // Запятая (Пред. кадр)
+                    EventBus.emit('CMD_SEEK_RELATIVE', -frameStep);
+                    break;
+
+                case 'arrowup':
+                    e.preventDefault(); // Защита от скролла страницы
+                    const upVol = Math.min(100, currentVol + 5);
+                    this.setVolumeUI(upVol);
+                    EventBus.emit('CMD_VOLUME', upVol);
+                    break;
+                
+                case 'arrowdown':
+                    e.preventDefault();
+                    const downVol = Math.max(0, currentVol - 5);
+                    this.setVolumeUI(downVol);
+                    EventBus.emit('CMD_VOLUME', downVol);
+                    break;
+
+                case 'm':
+                    EventBus.emit('CMD_MUTE_TOGGLE');
+                    break;
+                
+                case 'f':
+                    this.toggleFullscreen();
+                    break;
+
+                case 'n':
+                    // Переключаем трек только если зажат Shift (Shift+N)
+                    if (e.shiftKey) this.playNext();
+                    break;
+                
+                case 'p':
+                    // Пред. трек (Shift+P)
+                    if (e.shiftKey) this.playPrev();
+                    break;
+            }
+        });
     }
 
     renderQualityMenu(qualities) {
@@ -242,18 +324,14 @@ export class UIController {
         const video = this.playlistData[index];
         const channelStr = video.channel || "АРХИВНЫЙ ФАЙЛ";
         
-        // Установка данных в UI
         this.els.currentTitle.textContent = video.title;
         this.els.currentTitle.href = `https://www.youtube.com/watch?v=${video.id}`;
         this.els.channelName.textContent = channelStr;
         
-        // Используем динамический аватар, если нет реального
         this.els.channelAvatar.src = video.channelAvatar || this.generateDynamicAvatar(channelStr);
 
-        // Расчет анимации текста
         this.calculateTitleAnimation();
 
-        // Обновление активной карточки
         document.querySelectorAll('.track-card').forEach(c => c.classList.remove('active'));
         const activeCard = document.querySelector(`.track-card[data-index="${index}"]`);
         if(activeCard) {
