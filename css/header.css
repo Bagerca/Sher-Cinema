@@ -29,21 +29,19 @@
     50% { opacity: 0.4; box-shadow: 0 0 2px var(--neon-green); } 
 }
 
-/* Стили модуля выбора плейлиста */
-.playlist-selector-module {
-    position: relative;
-    display: inline-block;
-}
+/* НОВОЕ: Группа для правой части шапки */
+.header-actions { display: flex; align-items: center; gap: 20px; }
+
+.playlist-selector-module { position: relative; display: inline-block; }
 
 .source-btn {
     background: transparent; border: 1px solid var(--border-color); color: #888; font-family: 'Orbitron', sans-serif;
     font-size: 0.85rem; font-weight: 700; padding: 10px 20px; border-radius: 6px; background: rgba(0,0,0,0.6);
-    cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; gap: 10px;
+    cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; gap: 10px; height: 40px;
 }
 .source-btn:hover { color: #fff; background: rgba(255, 255, 255, 0.05); }
 .source-btn.active { background: rgba(255, 45, 149, 0.1); border-color: var(--neon-pink); color: #fff; box-shadow: 0 0 15px rgba(255, 45, 149, 0.3); }
 
-/* Выпадающее меню */
 .playlist-dropdown-menu {
     position: absolute; top: calc(100% + 10px); right: 0; min-width: 250px;
     background: rgba(5, 5, 8, 0.95); border: 1px solid var(--neon-pink);

@@ -23,8 +23,8 @@ export class DataManager {
                 throw new Error("В config.json нет ни одного плейлиста");
             }
         } catch (e) {
-            console.error("⚠️ [DataManager] Ошибка инициализации:", e);
-            EventBus.emit('SHOW_ERROR', "Не удалось загрузить config.json или плейлисты не настроены.");
+            console.error("⚠️ [DataManager] Ошибка инициализации конфига:", e);
+            await this.loadLocalArchiveAsFallback("Ошибка загрузки плейлистов. Подключен резервный архив.");
         }
     }
 
@@ -34,20 +34,30 @@ export class DataManager {
         return (match && match[1]) ? match[1] : url; 
     }
 
-    // НОВОЕ: Парсинг ISO 8601 длительности (PT25M45S -> 25:45)
+    extractVideoId(url) {
+        if (!url) return null;
+        const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+        const match = url.match(regExp);
+        return (match && match[2].length === 11) ? match[2] : null;
+    }
+
+    // ОБНОВЛЕНО: Возвращает и отформатированную строку, и общее число секунд
     parseDuration(isoStr) {
-        if (!isoStr) return '';
+        if (!isoStr) return { formatted: '', seconds: 0 };
         const match = isoStr.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
-        if (!match) return '';
+        if (!match) return { formatted: '', seconds: 0 };
         const h = match[1] ? parseInt(match[1]) : 0;
         const m = match[2] ? parseInt(match[2]) : 0;
         const s = match[3] ? parseInt(match[3]) : 0;
         
-        if (h > 0) return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-        return `${m}:${s.toString().padStart(2, '0')}`;
+        const totalSeconds = (h * 3600) + (m * 60) + s;
+        let formatted = '';
+        if (h > 0) formatted = `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+        else formatted = `${m}:${s.toString().padStart(2, '0')}`;
+        
+        return { formatted, seconds: totalSeconds };
     }
 
-    // НОВОЕ: Форматирование чисел (1352931 -> 1.3M)
     formatNumber(num) {
         if (!num) return '';
         const n = parseInt(num);
@@ -56,7 +66,13 @@ export class DataManager {
         return n.toString();
     }
 
-    // ОБНОВЛЕНО: Загружаем не только аватар, но и хэндл + подписчиков
+    formatDate(isoDate) {
+        if (!isoDate) return 'Дата неизвестна';
+        const date = new Date(isoDate);
+        const months = ['Января', 'Февраля', 'Марта', 'Апреля', 'Мая', 'Июня', 'Июля', 'Августа', 'Сентября', 'Октября', 'Ноября', 'Декабря'];
+        return `${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`;
+    }
+
     async fetchChannelDetails(channelIds, apiKey) {
         const uniqueIds = [...new Set(channelIds)].filter(id => id);
         const map = {};
@@ -72,21 +88,20 @@ export class DataManager {
                 
                 if (data.items) {
                     data.items.forEach(ch => {
+                        const thumbs = ch.snippet.thumbnails;
+                        const hqAvatar = thumbs.high?.url || thumbs.medium?.url || thumbs.default?.url;
                         map[ch.id] = {
-                            avatar: ch.snippet.thumbnails.default.url,
+                            avatar: hqAvatar,
                             handle: ch.snippet.customUrl || null,
                             subs: this.formatNumber(ch.statistics.subscriberCount)
                         };
                     });
                 }
-            } catch (e) {
-                console.warn("⚠️ [DataManager] Ошибка загрузки каналов:", e);
-            }
+            } catch (e) { console.warn("⚠️ Ошибка загрузки каналов:", e); }
         }
         return map;
     }
 
-    // НОВОЕ: Загрузка статистики видео (один батч-запрос)
     async fetchVideoStats(videoIds, apiKey) {
         const uniqueIds = [...new Set(videoIds)].filter(id => id);
         const map = {};
@@ -102,25 +117,27 @@ export class DataManager {
 
                 if (data.items) {
                     data.items.forEach(v => {
+                        const durData = this.parseDuration(v.contentDetails.duration);
                         map[v.id] = {
-                            durationRaw: v.contentDetails.duration,
-                            duration: this.parseDuration(v.contentDetails.duration),
+                            duration: durData.formatted,
+                            durationSec: durData.seconds, // Для сортировки
+                            viewsRaw: v.statistics.viewCount,
                             views: this.formatNumber(v.statistics.viewCount),
                             likes: this.formatNumber(v.statistics.likeCount),
-                            isLive: v.snippet.liveBroadcastContent === 'live'
+                            isLive: v.snippet.liveBroadcastContent === 'live',
+                            description: v.snippet.description || 'Описание отсутствует.',
+                            publishDate: this.formatDate(v.snippet.publishedAt),
+                            publishTimestamp: new Date(v.snippet.publishedAt).getTime() // Для сортировки
                         };
                     });
                 }
-            } catch (e) {
-                console.warn("⚠️ [DataManager] Ошибка загрузки статы видео:", e);
-            }
+            } catch (e) { console.warn("⚠️ Ошибка загрузки статы видео:", e); }
         }
         return map;
     }
 
     async loadPlaylist(index) {
         if (index < 0 || index >= this.playlists.length) return;
-        
         this.currentPlaylistIndex = index;
         this.videos = [];
         EventBus.emit('DATA_LOADING');
@@ -130,15 +147,14 @@ export class DataManager {
         const playlistId = this.extractYouTubePlaylistId(playlistData.url);
 
         if (!apiKey || apiKey === "ВАШ_GOOGLE_API_KEY" || apiKey.trim() === "") {
-            EventBus.emit('SHOW_ERROR', "Укажите рабочий API-ключ в config.json");
+            await this.loadLocalArchiveAsFallback("Демо-режим: API-ключ не настроен.");
             return;
         }
 
         try {
-            console.log(`📡 [DataManager] Загрузка плейлиста: ${playlistData.name}`);
             const url = `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=50&playlistId=${playlistId}&key=${apiKey}`;
-            
             const apiRes = await fetch(url);
+            if (!apiRes.ok) throw new Error(`HTTP ошибка! Статус: ${apiRes.status}`);
             const data = await apiRes.json();
             
             if (data.error) throw new Error(data.error.message || "Ошибка YouTube API");
@@ -147,13 +163,12 @@ export class DataManager {
                 const channelIds = data.items.map(item => item.snippet.videoOwnerChannelId);
                 const videoIds = data.items.map(item => item.snippet.resourceId.videoId);
 
-                // ОДНОВРЕМЕННО запрашиваем детали каналов и статистику видео
                 const [channelsMap, videosMap] = await Promise.all([
                     this.fetchChannelDetails(channelIds, apiKey),
                     this.fetchVideoStats(videoIds, apiKey)
                 ]);
 
-                this.videos = data.items.map(item => {
+                this.videos = data.items.map((item, i) => {
                     const cId = item.snippet.videoOwnerChannelId;
                     const vId = item.snippet.resourceId.videoId;
                     const cDetails = channelsMap[cId] || {};
@@ -161,34 +176,65 @@ export class DataManager {
 
                     return {
                         id: vId,
+                        originalIndex: i, // Сохраняем изначальный порядок YouTube
                         title: item.snippet.title,
-                        thumb: item.snippet.thumbnails.maxres ? item.snippet.thumbnails.maxres.url : item.snippet.thumbnails.high?.url,
+                        thumb: item.snippet.thumbnails.maxres ? item.snippet.thumbnails.maxres.url : item.snippet.thumbnails.high?.url || item.snippet.thumbnails.medium?.url,
                         channel: item.snippet.videoOwnerChannelTitle,
                         channelAvatar: cDetails.avatar || null,
                         channelHandle: cDetails.handle || null,
                         channelSubs: cDetails.subs || null,
                         duration: vDetails.duration || '',
+                        durationSec: vDetails.durationSec || 0,
                         views: vDetails.views || null,
+                        viewsRaw: vDetails.viewsRaw || null, 
                         likes: vDetails.likes || null,
-                        isLive: vDetails.isLive || false
+                        isLive: vDetails.isLive || false,
+                        description: vDetails.description || 'Описание не загружено', 
+                        publishDate: vDetails.publishDate || 'Неизвестно',
+                        publishTimestamp: vDetails.publishTimestamp || 0
                     };
                 });
             }
-            
-            console.log(`📂 [DataManager] Загружено ${this.videos.length} видео со статистикой.`);
             EventBus.emit('DATA_READY', this.videos);
             EventBus.emit('PLAYLIST_CHANGED', index);
             
         } catch (error) {
-            console.error(`❌ [DataManager] Ошибка загрузки базы:`, error);
-            EventBus.emit('DATA_READY', []);
-            EventBus.emit('SHOW_ERROR', error.message);
+            await this.loadLocalArchiveAsFallback(`Ошибка подключения. Загружен архив.`);
         }
+    }
+
+    async loadLocalArchiveAsFallback(warningMsg) {
+        try {
+            const res = await fetch('./archive.json');
+            if (!res.ok) throw new Error("Не удалось загрузить archive.json");
+            const urls = await res.json();
+
+            this.videos = urls.map((url, i) => {
+                const id = this.extractVideoId(url);
+                return {
+                    id: id || "dQw4w9WgXcQ", originalIndex: i,
+                    title: `Архивное видео #${i + 1}`,
+                    thumb: id ? `https://img.youtube.com/vi/${id}/hqdefault.jpg` : "",
+                    channel: "ЛОКАЛЬНЫЙ АРХИВ", channelAvatar: null, channelHandle: null, channelSubs: null,
+                    duration: "", durationSec: 0, views: "Local", viewsRaw: "0", likes: null, isLive: false,
+                    description: `Ссылка: ${url}`, publishDate: this.formatDate(new Date().toISOString()), publishTimestamp: Date.now()
+                };
+            });
+
+            this.playlists = [{ name: "РЕЗЕРВНЫЙ АРХИВ", url: "" }];
+            EventBus.emit('CONFIG_READY', this.playlists);
+            EventBus.emit('DATA_READY', this.videos);
+            EventBus.emit('PLAYLIST_CHANGED', 0);
+            EventBus.emit('SHOW_ERROR', warningMsg);
+        } catch (e) { EventBus.emit('DATA_READY', []); }
     }
 
     search(query) {
         if (!query.trim()) return this.videos;
         const q = query.toLowerCase();
-        return this.videos.filter(v => v.title.toLowerCase().includes(q));
+        return this.videos.filter(v => 
+            v.title.toLowerCase().includes(q) || 
+            (v.channel && v.channel.toLowerCase().includes(q))
+        );
     }
 }

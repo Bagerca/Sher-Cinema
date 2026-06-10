@@ -25,18 +25,26 @@
             <div class="status-badge"><span class="pulse-dot"></span> СИСТЕМА АКТИВНА</div>
         </div>
         
-        <div class="playlist-selector-module" id="playlist-selector-module">
-            <button class="source-btn active" id="active-playlist-btn">
-                <i class="fas fa-folder-open"></i> <span id="active-playlist-name">ЗАГРУЗКА БАЗЫ...</span> <i class="fas fa-chevron-down" style="font-size: 0.7em; margin-left: 5px;"></i>
-            </button>
-            <div class="playlist-dropdown-menu" id="header-playlist-dropdown"></div>
-        </div>
+        <nav class="header-actions">
+            <!-- Кнопка смены расположения плеера и плейлиста -->
+            <button class="cyber-btn small-btn" id="btn-layout-swap" title="Сменить расположение"><i class="fas fa-exchange-alt"></i></button>
+            <button class="cyber-btn small-btn" id="btn-hotkeys" title="Горячие клавиши (H)"><i class="fas fa-keyboard"></i></button>
+            
+            <div class="playlist-selector-module" id="playlist-selector-module">
+                <button class="source-btn active" id="active-playlist-btn">
+                    <i class="fas fa-folder-open"></i> <span id="active-playlist-name">ЗАГРУЗКА БАЗЫ...</span> <i class="fas fa-chevron-down" style="font-size: 0.7em; margin-left: 5px;"></i>
+                </button>
+                <div class="playlist-dropdown-menu" id="header-playlist-dropdown"></div>
+            </div>
+        </nav>
     </header>
 
     <main class="cinema-layout">
         
         <section class="player-section">
             <div class="video-container-wrapper" id="fullscreen-wrapper">
+                <div class="ambilight-bg" id="ambilight-bg"></div>
+                
                 <div class="video-frame" id="player-frame">
                     <div id="yt-player"></div>
                     <div class="video-shield"></div>
@@ -46,18 +54,19 @@
                 </div>
             </div>
 
-            <div class="control-deck">
+            <nav class="control-deck">
                 <div class="custom-progress-area" id="progress-area">
                     <div class="custom-progress-fill" id="progress-fill"></div>
+                    <div class="chapter-markers-container" id="chapter-markers-container"></div>
+                    <div class="progress-hover-tooltip" id="progress-hover-tooltip"></div>
                 </div>
 
                 <div class="deck-content">
                     <div class="now-playing-info">
                         <a href="#" target="_blank" class="channel-avatar-link" id="channel-link" title="Перейти на канал">
-                            <img src="data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%27150%27%20height%3D%27150%27%3E%3Crect%20width%3D%27150%27%20height%3D%27150%27%20fill%3D%27%231a1a2e%27%2F%3E%3Ctext%20x%3D%2750%25%27%20y%3D%2750%25%27%20font-family%3D%27sans-serif%27%20font-size%3D%2740%27%20fill%3D%27%2339ff14%27%20text-anchor%3D%27middle%27%20dy%3D%27.3em%27%3ECH%3C%2Ftext%3E%3C%2Fsvg%3E" alt="Channel" id="channel-avatar">
+                            <img src="" alt="Channel" id="channel-avatar">
                         </a>
                         <div class="title-wrapper">
-                            <!-- ОБНОВЛЕНО: Блок имени канала + статистика -->
                             <div class="channel-info-row">
                                 <span class="channel-name" id="channel-name">SYSTEM STANDBY</span>
                                 <span class="channel-meta" id="channel-meta"></span>
@@ -67,7 +76,6 @@
                                 <a href="#" target="_blank" class="title" id="current-title" title="Смотреть на YouTube">Ожидание выбора протокола...</a>
                             </div>
 
-                            <!-- НОВОЕ: Статистика видео -->
                             <div class="video-stats-row" id="video-stats-row"></div>
                         </div>
                     </div>
@@ -79,16 +87,20 @@
                     </div>
                     
                     <div class="tools-controls">
-                        <div class="time-display" id="time-display">0:00 / 0:00</div>
+                        <div class="chapter-indicator" id="chapter-indicator"></div>
+
+                        <time class="time-display" id="time-display">0:00 / 0:00</time>
                         
                         <div class="deck-divider"></div>
                         
+                        <button class="cyber-btn small-btn" id="btn-cinema" title="Кино-режим (T)"><i class="fas fa-lightbulb"></i></button>
+                        <button class="cyber-btn small-btn" id="btn-info" title="Детали файла (I)"><i class="fas fa-info-circle"></i></button>
                         <button class="cyber-btn small-btn" id="btn-unlock" title="Снять защиту (Смена аудиодорожки)"><i class="fas fa-lock"></i></button>
-                        <button class="cyber-btn small-btn" id="btn-cc" title="Субтитры"><i class="far fa-closed-captioning"></i></button>
+                        <button class="cyber-btn small-btn" id="btn-cc" title="Субтитры (C)"><i class="far fa-closed-captioning"></i></button>
 
                         <div class="volume-container">
-                            <button class="cyber-btn small-btn" id="btn-mute" title="Вкл/Выкл звук"><i class="fas fa-volume-up"></i></button>
-                            <input type="range" id="volume-slider" min="0" max="100" value="100" class="cyber-slider">
+                            <button class="cyber-btn small-btn" id="btn-mute" title="Вкл/Выкл звук (M)"><i class="fas fa-volume-up"></i></button>
+                            <input type="range" id="volume-slider" min="0" max="100" value="100" class="cyber-slider" aria-label="Громкость">
                         </div>
 
                         <div class="deck-divider"></div>
@@ -99,39 +111,95 @@
                             <button class="cyber-btn small-btn speed-btn" id="btn-speed-toggle" title="Скорость">1.0x</button>
                             <div class="speed-dropdown" id="speed-dropdown">
                                 <div class="s-header">СКОРОСТЬ</div>
-                                <div class="s-option" data-speed="0.5">0.5x Медленно</div>
-                                <div class="s-option active" data-speed="1">1.0x Обычная</div>
-                                <div class="s-option" data-speed="1.25">1.25x Быстрее</div>
-                                <div class="s-option" data-speed="1.5">1.5x Быстро</div>
-                                <div class="s-option" data-speed="2">2.0x Экстрим</div>
+                                <button class="s-option" data-speed="0.5">0.5x Медленно</button>
+                                <button class="s-option active" data-speed="1">1.0x Обычная</button>
+                                <button class="s-option" data-speed="1.25">1.25x Быстрее</button>
+                                <button class="s-option" data-speed="1.5">1.5x Быстро</button>
+                                <button class="s-option" data-speed="2">2.0x Экстрим</button>
                             </div>
                         </div>
 
-                        <button class="cyber-btn small-btn" id="btn-fullscreen" title="На весь экран"><i class="fas fa-expand"></i></button>
+                        <button class="cyber-btn small-btn" id="btn-fullscreen" title="На весь экран (F)"><i class="fas fa-expand"></i></button>
                     </div>
                 </div>
-            </div>
+            </nav>
         </section>
 
         <aside class="playlist-section">
             <div class="search-module" id="search-module">
                 <i class="fas fa-search search-icon"></i>
-                <input type="text" id="search-input" placeholder="Поиск по базе..." autocomplete="off">
+                <input type="text" id="search-input" placeholder="Поиск по названию или автору..." autocomplete="off">
                 <button class="clear-btn" id="search-clear"><i class="fas fa-times"></i></button>
             </div>
             
-            <div class="playlist-header">
+            <header class="playlist-header">
                 <h3><i class="fas fa-list"></i> ДОСТУПНЫЕ ФАЙЛЫ</h3>
                 <div class="header-tools">
-                    <button class="sort-btn" id="btn-sort" title="Сортировка (А-Я / Я-А)"><i class="fas fa-sort-alpha-down"></i></button>
+                    <!-- Умное меню сортировки -->
+                    <div class="sort-module" id="sort-module">
+                        <button class="sort-btn" id="btn-sort" title="Сортировка">
+                            <i class="fas fa-sort"></i> <span id="current-sort-label">По умолчанию</span>
+                        </button>
+                        <div class="sort-dropdown" id="sort-dropdown">
+                            <div class="s-header">СОРТИРОВКА</div>
+                            <button class="s-option active" data-sort="default">По умолчанию</button>
+                            <button class="s-option" data-sort="az">А-Я (По названию)</button>
+                            <button class="s-option" data-sort="za">Я-А (По названию)</button>
+                            <button class="s-option" data-sort="newest">Сначала новые</button>
+                            <button class="s-option" data-sort="oldest">Сначала старые</button>
+                            <button class="s-option" data-sort="longest">Сначала длинные</button>
+                            <button class="s-option" data-sort="shortest">Сначала короткие</button>
+                        </div>
+                    </div>
                     <span class="count" id="playlist-count">0</span>
                 </div>
-            </div>
+            </header>
             
-            <div class="playlist-container" id="playlist-container"></div>
+            <section class="playlist-container" id="playlist-container"></section>
         </aside>
 
     </main>
+
+    <dialog class="cyber-modal-overlay" id="info-modal-overlay">
+        <div class="cyber-modal-container">
+            <header class="cyber-modal-header">
+                <div class="modal-brand"><i class="fas fa-database"></i> INFO TERMINAL</div>
+                <button class="modal-close-btn" id="info-modal-close"><i class="fas fa-times"></i></button>
+            </header>
+            <div class="cyber-modal-content">
+                <h2 class="info-title" id="info-title">STANDBY...</h2>
+                <div class="info-stats">
+                    <div class="info-stat-badge"><i class="far fa-calendar-alt"></i> <span id="info-date">--</span></div>
+                    <div class="info-stat-badge"><i class="fas fa-eye"></i> <span id="info-views">--</span> просмотров</div>
+                </div>
+                <div class="info-description-box" id="info-description"></div>
+            </div>
+        </div>
+    </dialog>
+
+    <dialog class="cyber-modal-overlay" id="hotkeys-modal-overlay">
+        <div class="cyber-modal-container" style="max-width: 600px;">
+            <header class="cyber-modal-header">
+                <div class="modal-brand"><i class="fas fa-keyboard"></i> HOTKEYS CHEATSHEET</div>
+                <button class="modal-close-btn" id="hotkeys-modal-close"><i class="fas fa-times"></i></button>
+            </header>
+            <div class="cyber-modal-content">
+                <div class="hotkeys-grid">
+                    <div class="hotkey-row"><div class="keys"><kbd>Space</kbd> или <kbd>K</kbd></div><div class="desc">Старт / Пауза</div></div>
+                    <div class="hotkey-row"><div class="keys"><kbd>→</kbd> / <kbd>←</kbd></div><div class="desc">Перемотка ±5 секунд</div></div>
+                    <div class="hotkey-row"><div class="keys"><kbd>L</kbd> / <kbd>J</kbd></div><div class="desc">Перемотка ±10 секунд</div></div>
+                    <div class="hotkey-row"><div class="keys"><kbd>↑</kbd> / <kbd>↓</kbd></div><div class="desc">Громкость ±5%</div></div>
+                    <div class="hotkey-row"><div class="keys"><kbd>M</kbd></div><div class="desc">Вкл / Выкл звук (Mute)</div></div>
+                    <div class="hotkey-row"><div class="keys"><kbd>F</kbd></div><div class="desc">На весь экран</div></div>
+                    <div class="hotkey-row"><div class="keys"><kbd>T</kbd></div><div class="desc">Вкл / Выкл Кино-режим</div></div>
+                    <div class="hotkey-row"><div class="keys"><kbd>I</kbd></div><div class="desc">Информация о видео</div></div>
+                    <div class="hotkey-row"><div class="keys"><kbd>C</kbd></div><div class="desc">Вкл / Выкл субтитры</div></div>
+                    <div class="hotkey-row"><div class="keys"><kbd>H</kbd></div><div class="desc">Справочник клавиш</div></div>
+                    <div class="hotkey-row"><div class="keys"><kbd>Shift</kbd> + <kbd>N</kbd> / <kbd>P</kbd></div><div class="desc">След. / Пред. видео</div></div>
+                </div>
+            </div>
+        </div>
+    </dialog>
 
     <script type="module" src="js/app.js"></script>
 </body>

@@ -15,20 +15,18 @@ body {
     color: #fff;
     font-family: 'Exo 2', sans-serif;
     height: 100vh;
-    overflow: hidden;
+    overflow: hidden; 
     display: flex;
     flex-direction: column;
 }
 
 a { text-decoration: none; color: inherit; }
 
-/* Custom Scrollbars */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.02); border-radius: 3px; }
 ::-webkit-scrollbar-thumb { background: var(--neon-pink); border-radius: 3px; box-shadow: 0 0 5px rgba(255, 45, 149, 0.5); }
 ::-webkit-scrollbar-thumb:hover { background: #fff; box-shadow: 0 0 10px var(--neon-pink); }
 
-/* Background (Cyber Matrix) */
 .cyber-bg {
     position: fixed; inset: 0; z-index: -1;
     background-image: 
@@ -38,6 +36,7 @@ a { text-decoration: none; color: inherit; }
         linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
     background-size: 100% 100%, 100% 100%, 40px 40px, 40px 40px;
     animation: bg-drift 60s linear infinite;
+    transition: opacity 0.5s ease;
 }
 
 @keyframes bg-drift {
@@ -45,15 +44,48 @@ a { text-decoration: none; color: inherit; }
     100% { background-position: 0 0, 0 0, 400px 400px, 400px 400px; }
 }
 
-/* Main Layout */
+/* ФИКС: Жестко ограничиваем высоту контейнера, чтобы плейлист не ломал плеер */
 .cinema-layout {
-    display: flex; flex-grow: 1; padding: 25px 40px 40px 40px; gap: 30px; overflow: hidden;
+    display: flex; 
+    flex: 1 1 0; 
+    min-height: 0; 
+    padding: 25px 40px 40px 40px; 
+    gap: 30px; 
+    transition: flex-direction 0.3s ease;
 }
+
+.cinema-layout.layout-reversed {
+    flex-direction: row-reverse;
+}
+
+body.cinema-mode .cyber-bg { opacity: 0.1; }
+
+body.cinema-mode .cinema-header,
+body.cinema-mode .playlist-section,
+body.cinema-mode .control-deck {
+    opacity: 0.1;
+    filter: grayscale(80%);
+    transition: all 0.5s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+body.cinema-mode .cinema-header:hover,
+body.cinema-mode .playlist-section:hover,
+body.cinema-mode .control-deck:hover {
+    opacity: 1;
+    filter: grayscale(0%);
+}
+
+.active-tool { color: #ffaa00 !important; border-color: #ffaa00 !important; box-shadow: 0 0 15px rgba(255,170,0,0.3); }
 
 @media (max-width: 1200px) {
     .cinema-layout { padding: 20px; gap: 20px; }
 }
 
 @media (max-width: 992px) {
-    .cinema-layout { flex-direction: column; overflow-y: auto; height: auto; min-height: 100vh; }
+    .cinema-layout { 
+        flex-direction: column !important; 
+        overflow-y: auto; 
+        height: auto; 
+        min-height: 100vh; 
+    }
 }

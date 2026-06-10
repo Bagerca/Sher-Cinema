@@ -1,0 +1,82 @@
+/* css/modal.css */
+
+.cyber-modal-overlay {
+    position: fixed; inset: 0; background: rgba(5, 5, 8, 0.85);
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+    z-index: 1000; display: flex; align-items: center; justify-content: center;
+    opacity: 0; visibility: hidden; transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.cyber-modal-overlay.active { opacity: 1; visibility: visible; }
+
+.cyber-modal-container {
+    width: 90%; max-width: 800px; max-height: 85vh; background: rgba(10, 11, 16, 0.98);
+    border: 1px solid var(--neon-pink); border-radius: 12px; 
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8), 0 0 30px rgba(255, 45, 149, 0.15);
+    display: flex; flex-direction: column; transform: translateY(30px) scale(0.95);
+    transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+    overflow: hidden; /* ФИКС: Контент больше не вываливается за скругления и рамку */
+}
+
+.cyber-modal-overlay.active .cyber-modal-container { transform: translateY(0) scale(1); }
+
+.cyber-modal-header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 15px 25px; border-bottom: 1px solid var(--border-color); 
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.modal-brand { font-family: 'Orbitron', sans-serif; font-weight: 700; color: var(--neon-pink); letter-spacing: 2px; }
+
+.modal-close-btn {
+    background: transparent; border: none; color: #888; font-size: 1.5rem;
+    cursor: pointer; transition: 0.2s; outline: none;
+}
+.modal-close-btn:hover { color: #fff; text-shadow: 0 0 10px #fff; transform: rotate(90deg); }
+
+.cyber-modal-content { padding: 25px; overflow-y: auto; flex-grow: 1; display: flex; flex-direction: column; gap: 15px; }
+
+.info-title { font-family: 'Orbitron', sans-serif; font-size: 1.2rem; line-height: 1.3; color: #fff; }
+
+.info-stats { display: flex; gap: 15px; border-bottom: 1px dashed rgba(255,255,255,0.1); padding-bottom: 15px; }
+.info-stat-badge {
+    font-family: 'Rajdhani', sans-serif; font-size: 0.9rem; font-weight: 700; color: #aaa;
+    background: rgba(255,255,255,0.05); padding: 5px 10px; border-radius: 6px; display: flex; align-items: center; gap: 8px;
+}
+.info-stat-badge i { color: var(--neon-green); }
+
+.info-description-box {
+    font-family: 'Exo 2', sans-serif; font-size: 0.95rem; line-height: 1.6; color: #ddd;
+    background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.05);
+    border-radius: 8px; padding: 20px; overflow-y: auto; white-space: pre-wrap; word-wrap: break-word;
+}
+
+.timestamp-link {
+    color: var(--neon-green); background: rgba(57, 255, 20, 0.1); font-family: 'monospace';
+    font-weight: 700; padding: 2px 6px; border-radius: 4px; cursor: pointer; transition: 0.2s;
+    display: inline-flex; align-items: center; gap: 4px; border: 1px solid transparent;
+}
+.timestamp-link:hover {
+    background: var(--neon-green); color: #000; border-color: var(--neon-green);
+    box-shadow: 0 0 10px rgba(57, 255, 20, 0.5); transform: translateY(-1px);
+}
+.timestamp-link i { font-size: 0.8em; }
+
+.cyber-modal-content::-webkit-scrollbar { width: 8px; }
+.info-description-box::-webkit-scrollbar { width: 6px; }
+
+.hotkeys-grid { display: flex; flex-direction: column; gap: 10px; }
+.hotkey-row {
+    display: flex; justify-content: space-between; align-items: center;
+    background: rgba(255,255,255,0.03); padding: 12px 20px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05);
+}
+.hotkey-row:hover { background: rgba(255,255,255,0.08); border-color: var(--neon-green); box-shadow: 0 0 15px rgba(57,255,20,0.1); }
+.hotkey-row .desc { font-family: 'Exo 2', sans-serif; font-size: 0.9rem; color: #ccc; }
+.hotkey-row .keys { display: flex; gap: 8px; align-items: center; color: #666; font-size: 0.8rem; }
+
+kbd {
+    background: #111; border: 1px solid #444; border-bottom: 3px solid #333;
+    border-radius: 6px; padding: 4px 10px; color: var(--neon-green);
+    font-family: 'Consolas', monospace; font-weight: bold; font-size: 0.85rem;
+    box-shadow: 0 4px 0 rgba(0,0,0,0.5); display: inline-block;
+}
