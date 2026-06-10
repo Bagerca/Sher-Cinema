@@ -19,27 +19,45 @@ export class YouTubePlayerController {
     }
 
     init() {
-        const currentOrigin = window.location.origin;
+        // ИСПРАВЛЕНИЕ: Жестко формируем правильный origin для GitHub Pages
+        const currentOrigin = window.location.protocol + '//' + window.location.hostname;
 
         this.player = new YT.Player('yt-player', {
             height: '100%', 
             width: '100%',
             playerVars: {
-                'autoplay': 1, 'controls': 0, 'disablekb': 1,
-                'fs': 0, 'rel': 0, 'iv_load_policy': 3,
-                'modestbranding': 1, 'origin': currentOrigin
+                // ВАЖНО: На боевых серверах автоплей работает стабильнее, если передавать origin
+                'autoplay': 1, 
+                'controls': 0, 
+                'disablekb': 1,
+                'fs': 0, 
+                'rel': 0, 
+                'iv_load_policy': 3,
+                'modestbranding': 1, 
+                'origin': currentOrigin,
+                'enablejsapi': 1,
+                'playsinline': 1 // Помогает автоплею на мобильных устройствах
             },
             events: {
                 'onReady': () => {
                     this.isReady = true;
                     document.getElementById('player-loader').style.display = 'none';
                     EventBus.emit('PLAYER_READY');
-                    if (this.currentVideoId) this.loadVideo(this.currentVideoId);
+                    
+                    if (this.currentVideoId) {
+                        this.loadVideo(this.currentVideoId);
+                    }
                     this.startTimeTracker();
                 },
                 'onStateChange': (event) => this.onStateChange(event),
+                'onError': (event) => {
+                    console.error("⚠️ [Player] Ошибка YouTube плеера, код:", event.data);
+                    // Если видео заблокировано владельцем (код 150) или удалено (код 100), пропускаем его
+                    if (event.data === 150 || event.data === 101 || event.data === 100) {
+                        EventBus.emit('CMD_NEXT');
+                    }
+                },
                 'onPlaybackQualityChange': (event) => {
-                    // Слушаем плеер, если юзер не форсировал свое
                     if (!this.userRequestedQuality) {
                         EventBus.emit('QUALITY_CHANGED', event.data);
                     }
@@ -76,7 +94,6 @@ export class YouTubePlayerController {
         
         const currentTime = this.player.getCurrentTime();
         
-        // Reload Hack (надежный рестарт с нужным параметром)
         if (qualityCode === 'auto') {
             this.player.loadVideoById({
                 videoId: this.currentVideoId,
@@ -101,6 +118,7 @@ export class YouTubePlayerController {
         if (state === YT.PlayerState.PLAYING || state === YT.PlayerState.BUFFERING) {
             this.player.pauseVideo();
         } else {
+            // Если браузер заблокировал старт, эта кнопка принудительно запустит его
             this.player.playVideo();
         }
     }
@@ -133,6 +151,7 @@ export class YouTubePlayerController {
     }
 
     onStateChange(event) {
+        // YT.PlayerState.UNSTARTED = -1
         if (event.data === YT.PlayerState.ENDED) {
             EventBus.emit('PLAYER_STATE_CHANGED', false);
             EventBus.emit('CMD_NEXT');
