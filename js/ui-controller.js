@@ -80,7 +80,6 @@ export class UIController {
         }, 50);
     }
 
-    // НОВОЕ: Вынесли логику громкости в отдельный метод для использования кнопками и мышкой
     setVolumeUI(val) {
         this.els.volumeSlider.value = val;
         this.els.volumeSlider.style.setProperty('--volume-fill', `${val}%`);
@@ -88,7 +87,6 @@ export class UIController {
         this.safeSetStorage('sher_volume', val);
     }
 
-    // НОВОЕ: Вынесли логику фуллскрина
     toggleFullscreen() {
         if (!document.fullscreenElement) {
             this.els.fullscreenWrapper.requestFullscreen().catch(e => console.error(e));
@@ -213,80 +211,78 @@ export class UIController {
         });
 
         // ==========================================
-        // НОВОЕ: Глобальное управление с клавиатуры
+        // ИСПРАВЛЕНИЕ: Используем e.code вместо e.key
+        // Это привязывает действия к физическим клавишам,
+        // игнорируя текущую раскладку (РУС/ENG)
         // ==========================================
         document.addEventListener('keydown', (e) => {
-            // Если мы печатаем в поиске — игнорируем нажатия
             if (e.target.tagName.toLowerCase() === 'input' || e.target.tagName.toLowerCase() === 'textarea') {
                 return;
             }
 
             const currentVol = parseInt(this.els.volumeSlider.value);
-            // Берем 0.033 сек (примерно 1 кадр при 30fps)
             const frameStep = 0.033; 
 
-            switch (e.key.toLowerCase()) {
-                case ' ': // Пробел
-                case 'k': // K
-                    e.preventDefault(); // Защита от скролла страницы пробелом
+            switch (e.code) {
+                case 'Space': 
+                case 'KeyK': // Физическая клавиша K (л)
+                    e.preventDefault(); 
                     EventBus.emit('CMD_PLAY_PAUSE');
                     break;
                 
-                case 'arrowright':
+                case 'ArrowRight':
                     e.preventDefault();
                     EventBus.emit('CMD_SEEK_RELATIVE', 5);
                     break;
                 
-                case 'arrowleft':
+                case 'ArrowLeft':
                     e.preventDefault();
                     EventBus.emit('CMD_SEEK_RELATIVE', -5);
                     break;
 
-                case 'l':
+                case 'KeyL': // Физическая клавиша L (д)
                     EventBus.emit('CMD_SEEK_RELATIVE', 10);
                     break;
                 
-                case 'j':
+                case 'KeyJ': // Физическая клавиша J (о)
                     EventBus.emit('CMD_SEEK_RELATIVE', -10);
                     break;
 
-                case '.': // Точка (След. кадр)
+                case 'Period': // Физическая клавиша . (ю)
                     EventBus.emit('CMD_SEEK_RELATIVE', frameStep);
                     break;
                 
-                case ',': // Запятая (Пред. кадр)
+                case 'Comma': // Физическая клавиша , (б)
                     EventBus.emit('CMD_SEEK_RELATIVE', -frameStep);
                     break;
 
-                case 'arrowup':
-                    e.preventDefault(); // Защита от скролла страницы
+                case 'ArrowUp':
+                    e.preventDefault(); 
                     const upVol = Math.min(100, currentVol + 5);
                     this.setVolumeUI(upVol);
                     EventBus.emit('CMD_VOLUME', upVol);
                     break;
                 
-                case 'arrowdown':
+                case 'ArrowDown':
                     e.preventDefault();
                     const downVol = Math.max(0, currentVol - 5);
                     this.setVolumeUI(downVol);
                     EventBus.emit('CMD_VOLUME', downVol);
                     break;
 
-                case 'm':
+                case 'KeyM': // Физическая клавиша M (ь)
                     EventBus.emit('CMD_MUTE_TOGGLE');
                     break;
                 
-                case 'f':
+                case 'KeyF': // Физическая клавиша F (а)
                     this.toggleFullscreen();
                     break;
 
-                case 'n':
-                    // Переключаем трек только если зажат Shift (Shift+N)
+                case 'KeyN': // Физическая клавиша N (т)
                     if (e.shiftKey) this.playNext();
                     break;
                 
-                case 'p':
-                    // Пред. трек (Shift+P)
+                case 'KeyP': // Физическая клавиша P (з)
                     if (e.shiftKey) this.playPrev();
                     break;
             }
