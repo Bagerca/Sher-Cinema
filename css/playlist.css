@@ -1,0 +1,71 @@
+/* css/playlist.css */
+
+.playlist-section {
+    width: 450px; background: var(--panel-bg); border: 1px solid var(--border-color);
+    border-radius: 12px; display: flex; flex-direction: column; backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px); flex-shrink: 0; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+}
+
+.search-module { position: relative; padding: 20px; border-bottom: 1px solid var(--border-color); }
+.search-module::before {
+    content: ''; position: absolute; top: 20px; left: 20px; right: 20px; height: 45px;
+    border-radius: 8px; pointer-events: none; z-index: 5;
+    background: linear-gradient(90deg, transparent 0%, rgba(57, 255, 20, 0.25) 50%, transparent 100%);
+    background-size: 200% 100%; opacity: 0; transition: 0.3s; mix-blend-mode: screen;
+}
+.search-module:focus-within::before { opacity: 1; animation: scanner 2s infinite linear; }
+@keyframes scanner { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+.search-icon { position: absolute; left: 35px; top: 35px; color: #666; font-size: 1.1rem; z-index: 2; transition: 0.3s; }
+.search-module:focus-within .search-icon { color: var(--neon-green); text-shadow: 0 0 5px var(--neon-green); }
+
+#search-input {
+    width: 100%; height: 45px; background: rgba(0,0,0,0.6); border: 1px solid var(--border-color);
+    border-radius: 8px; color: #fff; font-family: 'Exo 2', sans-serif; font-size: 1rem;
+    padding: 0 40px 0 45px; outline: none; transition: 0.3s; box-shadow: inset 0 0 10px rgba(0,0,0,0.8);
+}
+#search-input:focus { border-color: var(--neon-green); box-shadow: inset 0 0 15px rgba(57, 255, 20, 0.15); }
+#search-input::placeholder { color: #555; }
+
+.clear-btn {
+    position: absolute; right: 30px; top: 35px; background: transparent; border: none;
+    color: #666; cursor: pointer; display: none; font-size: 1.1rem; z-index: 2; transition: color 0.2s;
+}
+.clear-btn:hover { color: var(--neon-pink); text-shadow: 0 0 8px var(--neon-pink); }
+
+.playlist-header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 15px 20px; border-bottom: 1px dashed rgba(255,255,255,0.05);
+}
+.playlist-header h3 { font-family: 'Orbitron', sans-serif; font-size: 0.9rem; color: #aaa; letter-spacing: 1px; }
+.playlist-header .count { background: rgba(255,255,255,0.1); padding: 2px 8px; border-radius: 12px; font-size: 0.8rem; font-family: 'monospace'; color: var(--neon-green); }
+
+.playlist-container { flex-grow: 1; overflow-y: auto; padding: 10px 10px 20px 10px; display: flex; flex-direction: column; gap: 8px; }
+
+.track-card {
+    display: flex; gap: 15px; padding: 10px; background: rgba(0,0,0,0.4);
+    border: 1px solid transparent; border-radius: 8px; cursor: pointer; transition: all 0.2s cubic-bezier(0.25, 1, 0.5, 1);
+}
+.track-card:hover { background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.1); transform: translateX(5px); }
+.track-card.active {
+    background: linear-gradient(90deg, rgba(255, 45, 149, 0.15), rgba(0,0,0,0.5));
+    border-color: var(--neon-pink); border-left: 4px solid var(--neon-pink); transform: translateX(5px);
+}
+
+.track-thumb { width: 120px; aspect-ratio: 16/9; border-radius: 4px; object-fit: cover; border: 1px solid #333; transition: filter 0.3s; }
+.track-card.active .track-thumb { border-color: var(--neon-pink); filter: brightness(1.2) contrast(1.1); }
+
+.track-info { display: flex; flex-direction: column; justify-content: center; min-width: 0; }
+.track-title { font-weight: 700; font-size: 0.95rem; margin-bottom: 5px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.2; transition: color 0.2s; }
+.track-card.active .track-title { color: var(--neon-pink); text-shadow: 0 0 5px rgba(255, 45, 149, 0.5); }
+.track-meta { font-family: 'Rajdhani', sans-serif; font-size: 0.8rem; color: #777; font-weight: 700; text-transform: uppercase; }
+
+.search-highlight { color: var(--neon-green); font-weight: 900; background: rgba(57, 255, 20, 0.15); border-radius: 2px; padding: 0 2px; }
+
+@media (max-width: 1200px) {
+    .playlist-section { width: 380px; }
+}
+
+@media (max-width: 992px) {
+    .playlist-section { width: 100%; flex-grow: 1; height: 500px; }
+}
